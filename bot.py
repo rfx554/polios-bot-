@@ -25,7 +25,7 @@ def is_owner(interaction: discord.Interaction) -> bool:
 @bot.event
 async def on_ready():
     await tree.sync()
-    await bot.change_presence(status=discord.Status.invisible)
+    await bot.change_presence(status=discord.Status.offline)
     print(f"Connecté : {bot.user} (ID: {bot.user.id})")
 
 
